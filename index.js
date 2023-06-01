@@ -6,6 +6,7 @@ const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 const session = require('express-session');
 
 const cors = require("cors");
+const cityRoutes = require("./routes/cityRoutes.js");
 
 dotenv.config();
 
@@ -32,25 +33,26 @@ app.use(
 );
 app.use(express.json()); // to accept json data
 
-app.use(
-  session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-  })
-);
+// app.use(
+//   session({
+//     secret: SESSION_SECRET,
+//     resave: false,
+//     saveUninitialized: false,
+//   })
+// );
 
-app.use(passport.initialize());
-app.use(passport.session());
+// app.use(passport.initialize());
+// app.use(passport.session());
+// Error Handling middlewares
+app.use(notFound);
+app.use(errorHandler);
 app.use("/api/user", userRoutes);
+app.use("/city",cityRoutes)
 
 app.get("/", (req, res) => {
   res.send("API is running..");
 });
 
-// Error Handling middlewares
-app.use(notFound);
-app.use(errorHandler);
 
 const PORT = process.env.PORT;
 

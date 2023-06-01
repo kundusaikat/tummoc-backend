@@ -5,7 +5,7 @@ const {
   authUser,
   allUsers,
   logoutUser,
-  authUserWithGoogle
+  getUser,
 } = require("../controllers/userControllers");
 const { protect } = require("../middleware/authMiddleware");
 
@@ -15,20 +15,22 @@ const router = express.Router();
 require("../config/passport");
 
 router.route("/").get(protect, allUsers);
+router.route("/verify").get(protect,getUser);
 router.route("/").post(registerUser);
 router.post("/login", authUser);
-router.get("/auth/google", authUserWithGoogle);
+// router.get("/auth/google", authUserWithGoogle);
 
 // Google OAuth callback route
-router.get(
-  "/auth/google/callback",
-  passport.authenticate("google", { failureRedirect: "/login" }),
-  (req, res) => {
-    res.redirect("/");
-  }
-);
+// router.get(
+//   "/auth/google/callback",
+//   passport.authenticate("google", { failureRedirect: "/login" }),
+//   (req, res) => {
+//     res.redirect("/");
+//   }
+// );
 
-router.post("/logout", protect, logoutUser);
+router.put("/logout", protect, logoutUser);
+
+
 
 module.exports = router;
-r

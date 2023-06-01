@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const User = require("../models/userModel");
 const generateToken = require("../config/generateToken");
-const passport = require('passport');
+const passport = require("passport");
 // const { authUserWithGoogle } = require('../config/passport');
 
 //@description     Get or Search all users
@@ -11,7 +11,7 @@ const allUsers = asyncHandler(async (req, res) => {
   const keyword = req.query.search
     ? {
         $or: [
-          { name: { $regex: req.query.search, $options: "i" } },
+          { fullName: { $regex: req.query.search, $options: "i" } },
           { email: { $regex: req.query.search, $options: "i" } },
         ],
       }
@@ -25,9 +25,9 @@ const allUsers = asyncHandler(async (req, res) => {
 //@route           POST /api/user/
 //@access          Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body;
+  const { fullName, email, password } = req.body;
 
-  if (!name || !email || !password) {
+  if (!fullName || !email || !password) {
     res.status(400);
     throw new Error("Please Enter all the Fields");
   }
@@ -40,7 +40,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   const user = await User.create({
-    name,
+    fullName,
     email,
     password,
   });
@@ -49,11 +49,12 @@ const registerUser = asyncHandler(async (req, res) => {
     const token = generateToken(user._id);
     user.tokens.push(token); // Save token to the user's tokens array
     await user.save();
-  
+
     res.status(201).json({
       _id: user._id,
-      name: user.name,
+      fullName: user.fullName,
       email: user.email,
+      city: null,
       token: token,
     });
   } else {
@@ -70,26 +71,23 @@ const authUser = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({ email });
 
-  if(!user){
+  if (!user) {
     res.status(400);
     throw new Error("User not found");
   }
 
-  const isValid = await user.matchPassword(password)
+  const isValid = await user.matchPassword(password);
 
-  if(!isValid){
+  if (!isValid) {
     res.status(401);
     throw new Error("Password mismatch");
   }
-  if (user && (isValid)) {
+  if (user && isValid) {
     const token = generateToken(user._id);
     user.tokens.push(token); // Save token to the user's tokens array
     await user.save();
-  
+
     res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
       token: token,
     });
   } else {
@@ -101,30 +99,58 @@ const authUser = asyncHandler(async (req, res) => {
 //@description     Authenticate user with Google
 //@route           GET /api/users/auth/google
 //@access          Public
-const authUserWithGoogle = passport.authenticate('google', {
-  scope: ['profile', 'email'],
-});
+// const authUserWithGoogle = passport.authenticate('google', {
+//   scope: ['profile', 'email'],
+// });
 
-
-
-
-
-//@description     Logout the user
-//@route           POST /api/users/logout
-//@access          Private
-const logoutUser = asyncHandler(async (req, res) => {
+const getUser = asyncHandler(async (req, res) => {
   try {
-    // Extract the token from the request headers
-    const token = req.headers.authorization.split(" ")[1];
+    const userId = req.userId;
+    
+    // Find the user by ID
+    const user = await User.findById(userId);
 
-    // Remove the specific token from the user's tokens array
-    req.user.tokens = req.user.tokens.filter((userToken) => userToken !== token);
-    await req.user.save();
+    if (!user) {
+      res.status(404);
+      throw new Error("User not found");
+    }
 
-    res.json({ message: 'Logged out successfully' });
+    res.json({
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      city: user.city,
+    });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    console.log(error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
-module.exports = { allUsers, registerUser, authUser, logoutUser,authUserWithGoogle };
+//@description     Logout the user
+//@route           PUT /api/user/logout
+//@access          Private
+
+const logoutUser = asyncHandler(async (req, res) => {
+  try {
+    const token = req.headers.authorization.split(" ")[1];
+    const userId = req.userId; // Use req.userId instead of req.id
+
+    // Update the user by pulling the token from the tokens array
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $pull: { tokens: token } },
+      { new: true }
+    );
+
+    console.log(user); // Updated user object with the token removed
+
+    res.json({ message: "Logged out successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+module.exports = { allUsers, registerUser, authUser, logoutUser, getUser };
