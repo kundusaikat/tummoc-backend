@@ -1,7 +1,11 @@
-// const User = require('../models/userModel');
-// const passport = require("passport");
 
-// const GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
+const passport = require("passport");
+
+const passportJWT = require('passport-jwt');
+const User = require("../models/userModel");
+const JwtStrategy = passportJWT.Strategy;
+const ExtractJwt = passportJWT.ExtractJwt;
+
 
 
 // passport.use(
@@ -32,4 +36,27 @@
 //       }
 //     )
 //   );
-  
+
+
+const jwtOptions = {
+  jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+  secretOrKey: "Saikat"
+};
+
+
+passport.use(
+  new JwtStrategy(jwtOptions, async (jwtPayload, done) => {
+    try {
+      const user = await User.findById(jwtPayload.id);
+      if (user) {
+        return done(null, user);
+      } else {
+        return done(null, false);
+      }
+    } catch (error) {
+      return done(error, false);
+    }
+  })
+);
+
+module.exports = passport;

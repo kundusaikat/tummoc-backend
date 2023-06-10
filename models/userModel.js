@@ -6,7 +6,6 @@ const userSchema = mongoose.Schema(
     fullName: { type: "String", required: true },
     email: { type: "String", unique: true, required: true },
     password: { type: "String", required: true },
-    tokens: [{ type: "String" }],
     city: { type: mongoose.Schema.Types.ObjectId, ref: 'City' },
   },
   { timestamps: true }
@@ -16,10 +15,6 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-userSchema.methods.addToken = async function (token) {
-  this.tokens = [...this.tokens, token];
-  await this.save();
-};
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {

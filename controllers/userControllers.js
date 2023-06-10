@@ -2,6 +2,7 @@ const asyncHandler = require("express-async-handler");
 const User = require("../models/userModel");
 const generateToken = require("../config/generateToken");
 const passport = require("passport");
+const Blacklist = require("../models/blacklistModel");
 // const { authUserWithGoogle } = require('../config/passport');
 
 //@description     Get or Search all users
@@ -46,16 +47,12 @@ const registerUser = asyncHandler(async (req, res) => {
   });
 
   if (user) {
-    const token = generateToken(user._id);
-    user.tokens.push(token); // Save token to the user's tokens array
-    await user.save();
-
     res.status(201).json({
       _id: user._id,
       fullName: user.fullName,
       email: user.email,
       city: null,
-      token: token,
+      token: generateToken(user._id),
     });
   } else {
     res.status(400);
@@ -83,12 +80,11 @@ const authUser = asyncHandler(async (req, res) => {
     throw new Error("Password mismatch");
   }
   if (user && isValid) {
-    const token = generateToken(user._id);
-    user.tokens.push(token); // Save token to the user's tokens array
-    await user.save();
-
     res.json({
-      token: token,
+      fullName: user.fullName,
+      email: user.email,
+      city: user.city,
+      token: generateToken(user._id),
     });
   } else {
     res.status(401);
@@ -106,7 +102,7 @@ const authUser = asyncHandler(async (req, res) => {
 const getUser = asyncHandler(async (req, res) => {
   try {
     const userId = req.userId;
-    
+
     // Find the user by ID
     const user = await User.findById(userId);
 
@@ -116,14 +112,13 @@ const getUser = asyncHandler(async (req, res) => {
     }
 
     res.json({
-      _id: user._id,
       fullName: user.fullName,
       email: user.email,
       city: user.city,
     });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error(error); 
+    res.status(500).json({ error: "Internal server error", message: error.message });
   }
 });
 
@@ -132,25 +127,16 @@ const getUser = asyncHandler(async (req, res) => {
 //@access          Private
 
 const logoutUser = asyncHandler(async (req, res) => {
+  const token = req.headers.authorization.split(" ")[1];
+  console.log(token);
   try {
-    const token = req.headers.authorization.split(" ")[1];
-    const userId = req.userId; // Use req.userId instead of req.id
-
-    // Update the user by pulling the token from the tokens array
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { $pull: { tokens: token } },
-      { new: true }
-    );
-
-    console.log(user); // Updated user object with the token removed
-
-    res.json({ message: "Logged out successfully" });
+    // Add the token to the blacklist
+    await Blacklist.create({ token: token });
+    res.json({ message: "Logged out successfully." });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "Internal server error" });
+    // Handle error
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
-
 
 module.exports = { allUsers, registerUser, authUser, logoutUser, getUser };
